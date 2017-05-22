@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+
+. "$(dirname "$0")/common.sh"
+
+set -a
+
+if [ \! -d ~/brooklyn ]; then
+    fcyan; echo "Cloning base Git repo"; fwhite
+    git clone http://github.com/apache/brooklyn/ "${HOME}/brooklyn"
+    cd "${HOME}/brooklyn"
+
+    fcyan; echo "Cloning submodules"; fwhite
+    git submodule init
+    git submodule update --remote --merge --recursive
+
+    fcyan; echo "Adding remote for official Apache git repository"; fwhite
+    git remote add apache-git https://git-wip-us.apache.org/repos/asf/brooklyn
+    git submodule foreach 'git remote add apache-git https://git-wip-us.apache.org/repos/asf/${name}'
+    git fetch --tags apache-git
+    git submodule foreach git fetch --tags apache-git
+
+    fcyan; echo "Checking out release tag"; fwhite
+    git checkout rel/apache-brooklyn-${VERSION}
+    git submodule foreach git checkout rel/apache-brooklyn-${VERSION}
+fi
+
+srcdir="apache-brooklyn-${VERSION}-src"
+srcdir="${HOME}/${srcdir//-rc[0-9]/}"
+if [ \! -d "${srcdir}" ]; then
+    fcyan; echo "Unpacking source distribution"; fwhite
+    tar xz -C "${HOME}" -f ~/dist.apache.org/repos/dist/dev/brooklyn/apache-brooklyn-${VERSION}/apache-brooklyn-${VERSION}-src.tar.gz
+fi
+
+fcyan; echo "Checking for surprises in the source distribution"; fwhite
+[ -z "$( find "${srcdir}" -name '*.?ar' )" ] || ( fred; echo "?AR files present"; fwhite )
+[ -z "$( find "${srcdir}" -name '.git' )" ] || ( fred; echo "Git files present"; fwhite )
+
+bred; echo " Comparing distributions: manually check for no surprising differences "; bblack
+diff -qr ~/brooklyn "${srcdir}" | sort

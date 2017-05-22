@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+
+. "$(dirname "$0")/common.sh"
+
+fileset=()
+for file in ${LOC}/*; do
+    if [[ ! "${file}" == *.asc && ! "${file}" == *.md5 && ! "${file}" == *.sha1 && ! "${file}" == *.sha256 ]]; then
+        fileset=("${fileset[@]}" "$(basename "${file}")")
+    fi
+done
+
+missing=0
+failed=0
+function check() {
+    local label=$1
+    shift
+    local file=$1
+    shift
+    if [ \! -f "${LOC}/${file}" ]; then
+        fyellow; echo -n " $label"; fwhite
+        missing=$((missing+1))
+        return 1
+    fi
+    ( cd "$LOC" && "$@" "$(basename "$file")" >/dev/null 2>/dev/null ) && {
+        fgreen; echo -n " $label"; fwhite
+        return 0
+    } || {
+        fred; echo -n " $label"; fwhite
+        failed=$((failed+1))
+        return 1
+    }
+}
+
+for file in "${fileset[@]}"; do
+    fcyan; echo -n $file; fwhite; echo -n ":"
+    if [[ "${file}" == *.tar.gz ]]; then
+        check TAR.GZ "${file}" tar tzf
+        check has-ZIP "$(basename "${file}" .tar.gz).zip" test -f
+    fi
+    if [[ "${file}" == *.zip ]]; then
+        check ZIP "${file}" unzip -t
+        check has-TAR.GZ "$(basename "${file}" .zip).tar.gz" test -f
+    fi
+    check MD5 "${file}.md5" md5sum --check --status
+    check SHA1 "${file}.sha1" shasum --algorithm 1 --check --status
+    check SHA256 "${file}.sha256" shasum --algorithm 256 --check --status
+    check PGP "${file}.asc" gpg --quiet --verify --trust-model always
+    echo ""
+done
+
+[ $missing -gt 0 ] && ( fyellow; echo "$missing files were missing" )
+[ $failed -gt 0 ] && ( fred; echo "$failed tests failed" )
+[ $missing -eq 0 -a $failed -eq 0 ] && ( fgreen; echo "all good" )
+fwhite
+

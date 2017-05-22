@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+
+. "$(dirname "$0")/common.sh"
+
+set -e
+
+dldir="${HOME}/dist.apache.org/repos/dist/dev/brooklyn/apache-brooklyn-${VERSION}"
+if [ \! -d "${dldir}" ]; then
+    wget --recursive --level 1 --no-parent --accept tar.gz,zip,rpm,deb,asc,md5,sha1,sha256 https://dist.apache.org/repos/dist/dev/brooklyn/apache-brooklyn-${VERSION}/
+fi
+
+bindir="apache-brooklyn-${VERSION}-bin"
+bindir="${HOME}/${bindir//-rc[0-9]/}"
+if [ \! -d "${bindir}" ]; then
+    fcyan; echo "Unpacking binary distribution"; fwhite
+    tar xz -C "${HOME}" -f ~/dist.apache.org/repos/dist/dev/brooklyn/apache-brooklyn-${VERSION}/apache-brooklyn-${VERSION}-bin.tar.gz
+fi
+
+clidir="apache-brooklyn-${VERSION}-client-cli-linux"
+clidir="${HOME}/${clidir//-rc[0-9]/}"
+if [ \! -d "${clidir}" ]; then
+    fcyan; echo "Unpacking client CLI distribution"; fwhite
+    tar xz -C "${HOME}" -f ~/dist.apache.org/repos/dist/dev/brooklyn/apache-brooklyn-${VERSION}/apache-brooklyn-${VERSION}-client-cli-linux.tar.gz
+fi
+
+fcyan; echo "Linking client CLI to ~/bin/br"; fwhite
+mkdir -p ~/bin
+[ -e ~/bin/br ] && rm -f ~/bin/br
+ln -s "${clidir}/br" ~/bin/br
+
